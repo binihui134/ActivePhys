@@ -1,0 +1,4 @@
+
+1. create rect instance
+2. make collision compatiable
+3. introduce gravity
