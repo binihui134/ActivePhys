@@ -15,7 +15,8 @@ class Box:
                  location: list[int] = None, 
                  velocity: list[int] = None, 
                  diameter: int = 120, 
-                 angleFixed: int = 0):
+                 angleFixed: int = 0,
+                 anchored: bool = False):
 
         if location is None:
             location = [0, 0]
@@ -46,6 +47,7 @@ class Box:
         self.angleMotion = math.atan2(self.vy, self.vx)
 
         self.angleFixed = angleFixed
+        self.anchored = anchored
         
     def draw(self, surface):
 
@@ -66,6 +68,8 @@ class Box:
         return {"lineList": lineList, "cornerPoints":CornerPoints}
     
     def physStep(self):
+        if self.anchored:
+            return
         self.location = [self.location[0] + self.velocity[0], self.location[1] + self.velocity[1]]
         self.x = self.location[0]
         self.y = self.location[1]
