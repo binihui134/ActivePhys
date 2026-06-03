@@ -178,7 +178,7 @@ class PhysUtils:
     
     #Detects object collision
     def DetectCollision(Objects: list[Box | Rectangle]):
-        return PhysUtils.DetectCollisionSAT()
+        return PhysUtils.DetectCollisionSAT(Objects)
     
 
     def DetectCollisionSAT(Objects : list[Box | Rectangle]):

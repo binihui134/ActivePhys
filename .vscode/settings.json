@@ -1,4 +1,8 @@
 {
+<<<<<<< HEAD
     "python-envs.defaultEnvManager": "ms-python.python:system",
+=======
+    "python-envs.defaultEnvManager": "ms-python.python:venv",
+>>>>>>> 3ff2695 (Create requirements.txt and .gitignore, also pass in Objects in PhysUtils>DetectCollision's return detectcollisionsat function)
     "python.REPL.enableREPLSmartSend": false
 }
