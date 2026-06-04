@@ -11,15 +11,40 @@ pygame.display.set_caption(title="ActivePhys", icontitle="ActivePhys")
 
 Clock = pygame.time.Clock()
 
-TBox = object.Box(name="TestBox", mass=2, location=[300, 300], velocity=[2,0])
-TBox2 = object.Box(name="TestBox2", mass=3, location=[500, 300], velocity=[0,2])
-TBox3 = object.Box(name="TestBox3", mass=2, location=[300, 500], velocity=[2,0])
-TBox4 = object.Box(name="TestBox4", mass=3, location=[450, 233], velocity=[0,2])
-TBox4 = object.Box(name="TestBox4", mass=929194929412, location=[450, 233], velocity=[0,2], anchored = True)
-# TRect2 = object.Rectangle(name="TestRect", mass=2, location=[350,170], diameters=[200,50],angleFixed=45, velocity=[0,2])
+TBox1 = object.Box(
+    name="HeavyBox",
+    mass=100,
+    location=[150, 150],
+    velocity=[3, 0]
+)
+
+TBox2 = object.Box(
+    name="MediumBox",
+    mass=10,
+    location=[350, 250],
+    velocity=[0, 2]
+)
+
+TBox3 = object.Box(
+    name="LightBox",
+    mass=1,
+    location=[250, 450],
+    velocity=[1, 0]
+)
+TRect1 = object.Rectangle(name="Ground", mass=math.inf, location=[0,700], diameters=[1000,50],angleFixed=0, velocity=[0,0], anchored=True)
 TRect3 = object.Rectangle(name="Ground", mass=math.inf, location=[350,700], diameters=[1000,50],angleFixed=0, velocity=[0,0], anchored=True)
 
-Objects = [TBox, TBox2, TBox3, TBox4, TRect3]
+
+Objects = [
+    TBox1,
+    TBox2,
+    TBox3,
+    TRect3,
+    TRect1
+]
+TRect2 = object.Rectangle(name="TestRect", mass=2, location=[350,170], diameters=[200,50],angleFixed=45, velocity=[0,2])
+
+pu.CreateWorldBounds(physWindow, Objects, thickness=50)
 
 running = True
 
@@ -34,6 +59,8 @@ def step(steps = 1):
 def render():
     for Object in Objects:
         Object.draw(physWindow)
+
+
 
 while running:
     physWindow.fill(color=(255,255,255))

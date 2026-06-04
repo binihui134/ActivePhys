@@ -1,12 +1,8 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
 import math
 import pygame
 import gamecuts
-
-
-if TYPE_CHECKING:
-    from object import *
+import object
 
 font = pygame.font.SysFont("Arial", 15)
 
@@ -181,95 +177,103 @@ class PhysUtils:
         return PhysUtils.DetectCollisionSAT(Objects)
     
 
-    def DetectCollisionSAT(Objects : list[Box | Rectangle]):
+    def DetectCollisionSAT(Objects: list[Box | Rectangle]):
         for i in range(len(Objects)):
             for j in range(i+1, len(Objects)):
                 o1 = Objects[i]
                 o2 = Objects[j]
-                
+
                 if o1 == o2:
-                    continue        
-                                
-                #PhysUtils.dot(c, axis)
-                                
+                    continue
+
                 o1Right = (cos(o1.angleFixed), sin(o1.angleFixed))
-                o1Up = (-sin(o1.angleFixed), cos(o1.angleFixed))                
-                
+                o1Up = (-sin(o1.angleFixed), cos(o1.angleFixed))
+
                 o2Right = (cos(o2.angleFixed), sin(o2.angleFixed))
                 o2Up = (-sin(o2.angleFixed), cos(o2.angleFixed))
 
                 collisionAxes = [o1Right, o1Up, o2Right, o2Up]
-                
+
                 collision = True
-                
                 smallestAxis = None
                 smallestOverlap = math.inf
-                                 
+
                 for axis in collisionAxes:
                     o1C = PhysUtils.dot(o1.location, axis)
                     o2C = PhysUtils.dot(o2.location, axis)
-                    
+
                     o1hw, o1hy = PhysUtils.objectOfTypeRadius(o1)
                     o2hw, o2hy = PhysUtils.objectOfTypeRadius(o2)
-                    
-                    o1Radi = abs(PhysUtils.dot(o1Right, axis)) * o1hw + abs(PhysUtils.dot(o1Up,axis)) * o1hy
-                    
-                    o2Radi = abs(PhysUtils.dot(o2Right, axis)) * o2hw + abs(PhysUtils.dot(o2Up,axis)) * o2hy
-                    
-                    o1min, o1max = o1C-o1Radi, o1C+o1Radi
-                    o2min, o2max = o2C-o2Radi, o2C+o2Radi
+
+                    o1Radi = abs(PhysUtils.dot(o1Right, axis)) * o1hw + abs(PhysUtils.dot(o1Up, axis)) * o1hy
+                    o2Radi = abs(PhysUtils.dot(o2Right, axis)) * o2hw + abs(PhysUtils.dot(o2Up, axis)) * o2hy
+
+                    o1min, o1max = o1C - o1Radi, o1C + o1Radi
+                    o2min, o2max = o2C - o2Radi, o2C + o2Radi
 
                     overlap = min(o1max, o2max) - max(o1min, o2min)
-                                        
+
                     if o1max < o2min or o2max < o1min:
-                        
                         collision = False
                         break
                     else:
                         if overlap < smallestOverlap:
                             smallestOverlap = overlap
-                            smallestAxis = axis                            
-                        
-                
+                            smallestAxis = axis
+
                 if not collision:
                     continue
-                
-                
+
                 dirVec = PhysUtils.cSub(o2.location, o1.location)
 
                 if PhysUtils.dot(dirVec, smallestAxis) < 0:
-                    smallestAxis = PhysUtils.cMul(smallestAxis, (-1,-1))
-                
+                    smallestAxis = PhysUtils.cMul(smallestAxis, (-1, -1))
+
                 MinimumTranslationVector = PhysUtils.cMul(smallestAxis, smallestOverlap)
-                 
-                halfMTV = PhysUtils.cDiv(MinimumTranslationVector, (2,2))       
-                        
-                o1.location = PhysUtils.cSub(o1.location, halfMTV)
-                o2.location = PhysUtils.cAdd(o2.location, halfMTV)
-                
+                halfMTV = PhysUtils.cDiv(MinimumTranslationVector, (2, 2))
+
+                if o1.anchored and o2.anchored:
+                    continue
+                elif o1.anchored:
+                    o2.location = PhysUtils.cAdd(o2.location, MinimumTranslationVector)
+                elif o2.anchored:
+                    o1.location = PhysUtils.cSub(o1.location, MinimumTranslationVector)
+                else:
+                    o1.location = PhysUtils.cSub(o1.location, halfMTV)
+                    o2.location = PhysUtils.cAdd(o2.location, halfMTV)
+
                 RelativeVelocity = PhysUtils.cSub(o2.velocity, o1.velocity)
-                
+
                 collisionNormal = smallestAxis
-                
                 velocityNormal = PhysUtils.dot(RelativeVelocity, collisionNormal)
-                
+
                 if velocityNormal > 0:
                     continue
-                
+
                 m1 = o1.mass
                 m2 = o2.mass
-                
+
                 e = 1
                 j = -(1 + e) * velocityNormal
-                j /= (1/m1 + 1/m2)
-                
-                
+
+                try:
+                    j /= (1/m1 + 1/m2)
+                except ZeroDivisionError:
+                    continue
+
                 impulse = PhysUtils.cMul(collisionNormal, j)
 
-                o1.velocity = PhysUtils.cSub(o1.velocity, PhysUtils.cDiv(impulse, (m1, m1)))
-                o2.velocity = PhysUtils.cAdd(o2.velocity, PhysUtils.cDiv(impulse, (m2, m2)))
-                
-        return Objects       
+                if o1.anchored and o2.anchored:
+                    continue
+                elif o1.anchored:
+                    o2.velocity = PhysUtils.cAdd(o2.velocity, PhysUtils.cDiv(impulse, (m2, m2)))
+                elif o2.anchored:
+                    o1.velocity = PhysUtils.cSub(o1.velocity, PhysUtils.cDiv(impulse, (m1, m1)))
+                else:
+                    o1.velocity = PhysUtils.cSub(o1.velocity, PhysUtils.cDiv(impulse, (m1, m1)))
+                    o2.velocity = PhysUtils.cAdd(o2.velocity, PhysUtils.cDiv(impulse, (m2, m2)))
+
+        return Objects
 
 
 
@@ -320,6 +324,60 @@ class PhysUtils:
                     CollideInstance1.velocity[0] = vPrime1
                     CollideInstance2.velocity[0] = vPrime2            
         return Objects
+    
+
+    # This method creates object.Rectangle objects around the edges of the screen
+    @staticmethod
+    def CreateWorldBounds(window, Objects, thickness=50):
+        width, height = window.get_size()
+
+        half_t = thickness / 2
+
+        # FLOOR
+        Floor = object.Rectangle(
+            name="Floor",
+            mass=math.inf,
+            location=[width / 2, height + half_t],
+            diameters=[width + thickness * 2, thickness],
+            angleFixed=0,
+            velocity=[0, 0],
+            anchored=True
+        )
+
+        # CEILING
+        Ceiling = object.Rectangle(
+            name="Ceiling",
+            mass=math.inf,
+            location=[width / 2, -half_t],
+            diameters=[width + thickness * 2, thickness],
+            angleFixed=0,
+            velocity=[0, 0],
+            anchored=True
+        )
+
+        # LEFT WALL
+        LeftWall = object.Rectangle(
+            name="LeftWall",
+            mass=math.inf,
+            location=[-half_t - 10, height / 2],
+            diameters=[thickness, height + thickness * 2],
+            angleFixed=0,
+            velocity=[0, 0],
+            anchored=True
+        )
+
+        # RIGHT WALL
+        RightWall = object.Rectangle(
+            name="RightWall",
+            mass=math.inf,
+            location=[width + half_t, height / 2],
+            diameters=[thickness, height + thickness * 2],
+            angleFixed=0,
+            velocity=[0, 0],
+            anchored=True
+        )
+
+        Objects.extend([Floor, Ceiling, LeftWall, RightWall])
 
     #Extra/Past Versions
     
@@ -362,4 +420,4 @@ class PhysUtils:
         o1.angleMotion = math.atan2(v1y, v1x)
 
         o2.speed = math.sqrt(v2x*v2x + v2y*v2y)
-        o2.angleMotion = math.atan2(v2y, v2x)                
+        o2.angleMotion = math.atan2(v2y, v2x)             
