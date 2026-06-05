@@ -19,10 +19,10 @@ class PhysUtils:
     # HELPER
      
     def GetHitboxBoundaries(Object : Box | Rectangle):
-        if Object.type == "Box":
-            hw,hy = Object.radius, Object.radius
-        else:
+        if hasattr(Object, "radii") and Object.radii:
             hw,hy = Object.radii[0], Object.radii[1]
+        else:
+            hw,hy = Object.radius, Object.radius
             
         x = Object.location[0]
         y = Object.location[1]
@@ -35,10 +35,10 @@ class PhysUtils:
         }
     
     def objectOfTypeRadius(Object: Box | Rectangle):
-        if Object.type == "Box":
-            return Object.radius, Object.radius
-        else:
+        if hasattr(Object, "radii") and Object.radii:
             return Object.radii[0], Object.radii[1]
+        else:
+            return Object.radius, Object.radius
     
      
     def OffAdd(origin, offset):
@@ -64,6 +64,83 @@ class PhysUtils:
     
     def dot(c1, c2):
         return c1[0]*c2[0]+c1[1]*c2[1]
+
+    def magnitude(vec):
+        return math.sqrt(vec[0] * vec[0] + vec[1] * vec[1])
+
+    def normalize(vec):
+        length = PhysUtils.magnitude(vec)
+        if length == 0:
+            return (0.0, 0.0)
+        return (vec[0] / length, vec[1] / length)
+
+    def rotatePoint(point, angle_radians):
+        c = math.cos(angle_radians)
+        s = math.sin(angle_radians)
+        return (point[0] * c - point[1] * s, point[0] * s + point[1] * c)
+
+    def generateCirclePolygon(center, radius, segments=24):
+        if segments < 3:
+            segments = 3
+
+        points = []
+        step = (2 * math.pi) / segments
+        for i in range(segments):
+            angle = step * i
+            points.append((radius * math.cos(angle), radius * math.sin(angle)))
+        return points
+
+    def getObjectAngleRadians(obj):
+        if hasattr(obj, "angleFixed") and obj.angleFixed is not None:
+            return math.radians(obj.angleFixed)
+        return 0.0
+
+    def getLocalPolygonVertices(obj):
+        if hasattr(obj, "localVertices") and obj.localVertices:
+            return obj.localVertices
+        if hasattr(obj, "local_vertices") and obj.local_vertices:
+            return obj.local_vertices
+        if hasattr(obj, "radii") and obj.radii:
+            half_x, half_y = obj.radii
+            return [
+                (half_x, half_y),
+                (half_x, -half_y),
+                (-half_x, -half_y),
+                (-half_x, half_y),
+            ]
+        if hasattr(obj, "radius"):
+            half = obj.radius
+            return [
+                (half, half),
+                (half, -half),
+                (-half, -half),
+                (-half, half),
+            ]
+        return []
+
+    def getWorldPolygonVertices(obj):
+        local_vertices = PhysUtils.getLocalPolygonVertices(obj)
+        angle = PhysUtils.getObjectAngleRadians(obj)
+        rotated = [PhysUtils.rotatePoint(vertex, angle) for vertex in local_vertices]
+        return [PhysUtils.OffAdd(obj.location, vertex) for vertex in rotated]
+
+    def getPolygonAxes(vertices):
+        axes = []
+        if len(vertices) < 2:
+            return axes
+
+        for i in range(len(vertices)):
+            p1 = vertices[i]
+            p2 = vertices[(i + 1) % len(vertices)]
+            edge = PhysUtils.cSub(p2, p1)
+            normal = PhysUtils.normalize((-edge[1], edge[0]))
+            if normal != (0.0, 0.0):
+                axes.append(normal)
+        return axes
+
+    def projectPolygon(vertices, axis):
+        dots = [PhysUtils.dot(vertex, axis) for vertex in vertices]
+        return min(dots), max(dots)
     
     #Get Corner Points
     
@@ -137,20 +214,42 @@ class PhysUtils:
     
      
     def showAngles(Object, Surface, deg=True):
-        
+
+        if Object.type == "Circle":
+            return
+
         x = Object.location[0] + math.cos(Object.angleMotion) * 75
-        y = Object.location[1] + -math.sin(Object.angleMotion) * 75 
-         
-        pygame.draw.line(Surface, (0,0,255), (Object.location[0], Object.location[1]), (x,y), 3)
+        y = Object.location[1] + -math.sin(Object.angleMotion) * 75
+
+        pygame.draw.line(Surface, (0,0,255),
+                        (Object.location[0], Object.location[1]),
+                        (x, y), 3)
+
         if deg:
-            gamecuts.displayText(Surface, font, str(math.degrees(Object.angleMotion))+"°", color=(0,0,0), x=Object.location[0], y=Object.location[1])     
+            gamecuts.displayText(Surface, font,
+                str(math.degrees(Object.angleMotion)) + "°",
+                color=(0,0,0),
+                x=Object.location[0],
+                y=Object.location[1])
         else:
-            gamecuts.displayText(Surface, font, str(Object.angleMotion)+"rad", color=(0,0,0), x=Object.location[0], y=Object.location[1])     
-        
-        x2 = Object.location[0] +math.cos(math.radians(Object.angleFixed)) * 75
-        y2 = Object.location[1] + -math.sin(math.radians(Object.angleFixed)) * 75 
-        pygame.draw.line(Surface, (255,0,0), (Object.location[0], Object.location[1]), (x2,y2), 3)
-        gamecuts.displayText(Surface, font, str(Object.angleFixed)+"°", color=(255,0,0), x=Object.location[0], y=Object.location[1]-15)    
+            gamecuts.displayText(Surface, font,
+                str(Object.angleMotion) + "rad",
+                color=(0,0,0),
+                x=Object.location[0],
+                y=Object.location[1])
+
+        x2 = Object.location[0] + math.cos(math.radians(Object.angleFixed)) * 75
+        y2 = Object.location[1] + -math.sin(math.radians(Object.angleFixed)) * 75
+
+        pygame.draw.line(Surface, (255,0,0),
+                        (Object.location[0], Object.location[1]),
+                        (x2, y2), 3)
+
+        gamecuts.displayText(Surface, font,
+            str(Object.angleFixed) + "°",
+            color=(255,0,0),
+            x=Object.location[0],
+            y=Object.location[1]-15)
              
     def showHitbox(Object, surface):
         #assuming Box item
@@ -173,11 +272,10 @@ class PhysUtils:
     
     
     #Detects object collision
-    def DetectCollision(Objects: list[Box | Rectangle]):
+    def DetectCollision(Objects: list[Box | Rectangle | Circle]):
         return PhysUtils.DetectCollisionSAT(Objects)
     
-
-    def DetectCollisionSAT(Objects: list[Box | Rectangle]):
+    def DetectCollisionSAT(Objects: list[Box | Rectangle | Circle]):
         for i in range(len(Objects)):
             for j in range(i+1, len(Objects)):
                 o1 = Objects[i]
@@ -186,42 +284,33 @@ class PhysUtils:
                 if o1 == o2:
                     continue
 
-                o1Right = (cos(o1.angleFixed), sin(o1.angleFixed))
-                o1Up = (-sin(o1.angleFixed), cos(o1.angleFixed))
+                o1_vertices = PhysUtils.getWorldPolygonVertices(o1)
+                o2_vertices = PhysUtils.getWorldPolygonVertices(o2)
 
-                o2Right = (cos(o2.angleFixed), sin(o2.angleFixed))
-                o2Up = (-sin(o2.angleFixed), cos(o2.angleFixed))
+                if len(o1_vertices) < 3 or len(o2_vertices) < 3:
+                    continue
 
-                collisionAxes = [o1Right, o1Up, o2Right, o2Up]
+                collisionAxes = PhysUtils.getPolygonAxes(o1_vertices) + PhysUtils.getPolygonAxes(o2_vertices)
 
                 collision = True
                 smallestAxis = None
                 smallestOverlap = math.inf
 
                 for axis in collisionAxes:
-                    o1C = PhysUtils.dot(o1.location, axis)
-                    o2C = PhysUtils.dot(o2.location, axis)
-
-                    o1hw, o1hy = PhysUtils.objectOfTypeRadius(o1)
-                    o2hw, o2hy = PhysUtils.objectOfTypeRadius(o2)
-
-                    o1Radi = abs(PhysUtils.dot(o1Right, axis)) * o1hw + abs(PhysUtils.dot(o1Up, axis)) * o1hy
-                    o2Radi = abs(PhysUtils.dot(o2Right, axis)) * o2hw + abs(PhysUtils.dot(o2Up, axis)) * o2hy
-
-                    o1min, o1max = o1C - o1Radi, o1C + o1Radi
-                    o2min, o2max = o2C - o2Radi, o2C + o2Radi
+                    o1min, o1max = PhysUtils.projectPolygon(o1_vertices, axis)
+                    o2min, o2max = PhysUtils.projectPolygon(o2_vertices, axis)
 
                     overlap = min(o1max, o2max) - max(o1min, o2min)
 
                     if o1max < o2min or o2max < o1min:
                         collision = False
                         break
-                    else:
-                        if overlap < smallestOverlap:
-                            smallestOverlap = overlap
-                            smallestAxis = axis
 
-                if not collision:
+                    if overlap < smallestOverlap:
+                        smallestOverlap = overlap
+                        smallestAxis = axis
+
+                if not collision or smallestAxis is None:
                     continue
 
                 dirVec = PhysUtils.cSub(o2.location, o1.location)
@@ -229,39 +318,31 @@ class PhysUtils:
                 if PhysUtils.dot(dirVec, smallestAxis) < 0:
                     smallestAxis = PhysUtils.cMul(smallestAxis, (-1, -1))
 
-                MinimumTranslationVector = PhysUtils.cMul(smallestAxis, smallestOverlap)
-                halfMTV = PhysUtils.cDiv(MinimumTranslationVector, (2, 2))
+                MTV = PhysUtils.cMul(smallestAxis, smallestOverlap)
+                halfMTV = PhysUtils.cDiv(MTV, (2, 2))
 
                 if o1.anchored and o2.anchored:
                     continue
                 elif o1.anchored:
-                    o2.location = PhysUtils.cAdd(o2.location, MinimumTranslationVector)
+                    o2.location = PhysUtils.cAdd(o2.location, MTV)
                 elif o2.anchored:
-                    o1.location = PhysUtils.cSub(o1.location, MinimumTranslationVector)
+                    o1.location = PhysUtils.cSub(o1.location, MTV)
                 else:
                     o1.location = PhysUtils.cSub(o1.location, halfMTV)
                     o2.location = PhysUtils.cAdd(o2.location, halfMTV)
 
                 RelativeVelocity = PhysUtils.cSub(o2.velocity, o1.velocity)
-
-                collisionNormal = smallestAxis
-                velocityNormal = PhysUtils.dot(RelativeVelocity, collisionNormal)
+                velocityNormal = PhysUtils.dot(RelativeVelocity, smallestAxis)
 
                 if velocityNormal > 0:
                     continue
 
-                m1 = o1.mass
-                m2 = o2.mass
+                m1, m2 = o1.mass, o2.mass
 
-                e = 1
-                j = -(1 + e) * velocityNormal
+                j = -(1 + 1) * velocityNormal
+                j /= (1/m1 + 1/m2)
 
-                try:
-                    j /= (1/m1 + 1/m2)
-                except ZeroDivisionError:
-                    continue
-
-                impulse = PhysUtils.cMul(collisionNormal, j)
+                impulse = PhysUtils.cMul(smallestAxis, j)
 
                 if o1.anchored and o2.anchored:
                     continue
@@ -276,9 +357,8 @@ class PhysUtils:
         return Objects
 
 
-
     #Use AABB Collision                                       
-    def DetectCollisionAABB(Objects : list[Box | Rectangle]):
+    def DetectCollisionAABB(Objects : list[Box | Rectangle | Circle]):
         for i in range(len(Objects)):
             for j in range(i + 1, len(Objects)):
                 

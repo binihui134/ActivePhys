@@ -34,11 +34,13 @@ TBox3 = object.Box(
 TRect1 = object.Rectangle(name="Ground", mass=math.inf, location=[0,700], diameters=[1000,50],angleFixed=0, velocity=[0,0], anchored=True)
 TRect3 = object.Rectangle(name="Ground", mass=math.inf, location=[350,700], diameters=[1000,50],angleFixed=0, velocity=[0,0], anchored=True)
 
+TCirc1 = object.Circle(name="Ball1", mass=5, location=[500, 150], velocity=[-2, 0], diameter=50)
 
 Objects = [
     TBox1,
     TBox2,
     TBox3,
+    TCirc1,
     TRect3,
     TRect1
 ]
